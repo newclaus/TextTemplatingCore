@@ -16,6 +16,8 @@ namespace RdJNL.TextTemplatingCore.TextTemplatingCoreLib
 {
     public static class TextTemplatingHelper
     {
+        public static int Timeout = 60000;
+
         public static IEnumerable<string> ProcessReferences(IEnumerable<string> references, string inputFileName, IDictionary<string, string> variables = null)
         {
             variables = variables != null
@@ -133,7 +135,7 @@ namespace RdJNL.TextTemplatingCore.TextTemplatingCoreLib
             };
 
             var p = Process.Start(info);
-            p.WaitForExit(60000);
+            p.WaitForExit(Timeout);
 
             if( !p.HasExited )
             {

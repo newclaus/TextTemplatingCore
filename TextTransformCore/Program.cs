@@ -2,6 +2,7 @@
 // Copyright 2020 RdJNL                        //
 // https://github.com/RdJNL/TextTemplatingCore //
 //---------------------------------------------//
+
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
@@ -25,14 +26,34 @@ namespace RdJNL.TextTemplatingCore.TextTransformCore
             string outputFileName = null;
             Encoding encoding = Encoding.UTF8;
 
+
             try
             {
-                if( args.Length != 1 )
+                string inputFileName = null;
+
+                for( int i = 0; i < args.Length; i++ )
                 {
-                    throw new ArgumentException($"Need 1 argument, found {args.Length}.", nameof(args));
+                    string current = args[i];
+
+                    if( current == "-t" )
+                    {
+                        if( ++i < args.Length )
+                        {
+                            TextTemplatingHelper.Timeout = int.Parse(args[i]);
+
+                            continue;
+                        }
+                    }
+                    else if( inputFileName == null )
+                    {
+                        inputFileName = Path.GetFullPath(TextTemplatingHelper.UnescapeArg(current));
+
+                        continue;
+                    }
+
+                    throw new ArgumentOutOfRangeException(nameof(args), args, "Invalid arguments are provided");
                 }
 
-                string inputFileName = Path.GetFullPath(TextTemplatingHelper.UnescapeArg(args[0]));
                 Directory.SetCurrentDirectory(Path.GetDirectoryName(inputFileName));
 
                 string inputText;
@@ -45,11 +66,13 @@ namespace RdJNL.TextTemplatingCore.TextTransformCore
                 Engine engine = new Engine();
                 TTHost host = new TTHost(inputFileName);
 
-                string templateCode = engine.PreprocessTemplate(inputText, host, TEMPLATE_CLASS, TEMPLATE_NAMESPACE, out _, out string[] references);
+                string templateCode = engine.PreprocessTemplate(inputText, host, TEMPLATE_CLASS, TEMPLATE_NAMESPACE,
+                    out _, out string[] references);
 
                 ThrowOrWriteErrors(host.HasErrors || templateCode == ERROR_OUTPUT, host.Errors);
 
-                outputFileName = Path.Combine(Path.GetDirectoryName(inputFileName), Path.GetFileNameWithoutExtension(inputFileName) + (host.FileExtension ?? ".cs"));
+                outputFileName = Path.Combine(Path.GetDirectoryName(inputFileName),
+                    Path.GetFileNameWithoutExtension(inputFileName) + (host.FileExtension ?? ".cs"));
                 encoding = host.OutputEncoding ?? encoding;
 
                 if( outputFileName == inputFileName )
@@ -60,7 +83,8 @@ namespace RdJNL.TextTemplatingCore.TextTransformCore
 
                 references = TextTemplatingHelper.ProcessReferences(references, inputFileName).ToArray();
 
-                string output = TextTemplatingHelper.ExecuteTemplate(inputFileName, templateCode, references, out TemplateError[] errors);
+                string output = TextTemplatingHelper.ExecuteTemplate(inputFileName, templateCode, references,
+                    out TemplateError[] errors);
                 ThrowOrWriteErrors(output == null, errors);
 
                 File.WriteAllText(outputFileName, output, encoding);
@@ -80,7 +104,8 @@ namespace RdJNL.TextTemplatingCore.TextTransformCore
             }
             catch( Exception ex )
             {
-                OutputException(true, ex.ToString() + Environment.NewLine + Environment.NewLine, outputFileName, encoding);
+                OutputException(true, ex.ToString() + Environment.NewLine + Environment.NewLine, outputFileName,
+                    encoding);
                 return 2;
             }
         }
@@ -134,10 +159,11 @@ namespace RdJNL.TextTemplatingCore.TextTransformCore
         private static string FormatError(TemplateError error)
         {
             return $"{(error.Warning ? "Warning" : "Error")} on line {error.Line}, column {error.Column}:" +
-                $"{Environment.NewLine}{error.Message}{Environment.NewLine}{Environment.NewLine}";
+                   $"{Environment.NewLine}{error.Message}{Environment.NewLine}{Environment.NewLine}";
         }
 
-        private static void OutputException(bool writeToConsole, string exceptionText, string outputFileName, Encoding encoding)
+        private static void OutputException(
+            bool writeToConsole, string exceptionText, string outputFileName, Encoding encoding)
         {
             exceptionText = ERROR_OUTPUT + Environment.NewLine + Environment.NewLine + exceptionText;
 
@@ -209,7 +235,8 @@ namespace RdJNL.TextTemplatingCore.TextTransformCore
 
                 Errors = errors
                     .Cast<CompilerError>()
-                    .Select(e => new TemplateError(e.IsWarning, $"Compile {(e.IsWarning ? "warning" : "error")} in {e.FileName}({e.Line},{e.Column}): {e.ErrorText}",
+                    .Select(e => new TemplateError(e.IsWarning,
+                        $"Compile {(e.IsWarning ? "warning" : "error")} in {e.FileName}({e.Line},{e.Column}): {e.ErrorText}",
                         e.Line, e.Column))
                     .ToImmutableArray();
             }
